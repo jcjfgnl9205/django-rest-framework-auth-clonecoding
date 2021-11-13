@@ -2,7 +2,11 @@ from django.shortcuts import render
 from rest_framework import generics, status
 from .serializers import RegisterSerialzer
 from rest_framework.response import Response
-
+from rest_framework_simplejwt.tokens import RefreshToken
+from .utils import Util
+from django.contrib.sites.shortcuts import get_current_site
+from django.urls import reverse
+from .models import User
 class RegisterView(generics.GenericAPIView):
 
     serializer_class = RegisterSerialzer
@@ -15,4 +19,18 @@ class RegisterView(generics.GenericAPIView):
 
         user_data = serializer.data
 
+        user = User.objects.get(email=user_data['email'])
+        token = RefreshToken.for_user(user).access_token
+
+        current_site = get_current_site(request).domain
+        relativeLink = reverse('email-verify')
+        absurl = 'http://' + current_site + relativeLink + '?token=' + str(token)
+        email_body = 'Hi ' + user.username + ' Use link below to verify your name \n ' + absurl
+        data = {'email_body':email_body, 'to_email':user.email, 'email_subject':'Verify your email'}
+        Util.send_email(data)
+
         return Response(user_data, status=status.HTTP_201_CREATED)
+
+class VerifyEmail(generics.GenericAPIView):
+    def get(self):
+        pass
