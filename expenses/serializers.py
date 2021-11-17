@@ -4,4 +4,4 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model=Expenses
-        fields=['date', 'id', 'description', 'amount', 'category']
+        fields=['id', 'date', 'description', 'amount', 'category']
