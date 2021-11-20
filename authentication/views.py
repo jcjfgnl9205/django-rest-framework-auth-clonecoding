@@ -97,7 +97,8 @@ class RequestPasswordResetEmail(generics.GenericAPIView):
         return Response({'success': 'We have sent you a link to reset your password'}, status=status.HTTP_200_OK)
 
 class PasswordTokenCheckAPI(generics.GenericAPIView):
-    
+    serializer_class = SetNewPasswordSerializer
+
     def get(self, request, uidb64, token):
         
         try:
