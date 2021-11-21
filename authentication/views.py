@@ -18,6 +18,13 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.contrib.sites.shortcuts import get_current_site
 from django.urls import reverse
 from .utils import Util
+from django.shortcuts import redirect
+from django.http import HttpResponsePermanentRedirect
+import os
+
+class CustomRedirect(HttpResponsePermanentRedirect):
+    allowed_schemes = [os.environ.get('APP_SCHEME'), 'http', 'https']
+
 class RegisterView(generics.GenericAPIView):
 
     serializer_class = RegisterSerialzer
@@ -101,18 +108,26 @@ class PasswordTokenCheckAPI(generics.GenericAPIView):
 
     def get(self, request, uidb64, token):
         
+        redirect_url = request.GET.get('redirect_url')
+        
         try:
             id = smart_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(id=id)
             
             if not PasswordResetTokenGenerator().check_token(user, token):
-                return Response({'error' : 'Token is not nalid, please request a new one'}, status=status.HTTP_401_UNAUTHORIZED)
+                if len(redirect_url) > 3:
+                    return CustomRedirect(redirect_url+'?token_valid=False')
+                else:
+                    return CustomRedirect(os.environ.get('FRONTEND_URL', '')+'?token_valid=False')
+                
+            if redirect_url and len(redirect_url) > 3:
+                return CustomRedirect(redirect_url+'?token-valid=True&?message=Credentials Valid&?uidb64='+uidb64+'&?token='+token)
+            else:
+                return CustomRedirect(os.environ.get('FRONTEND_URL', '')+'?token_valid=False')
 
-            return Response({'success':True, 'message':'Credentials Valid', 'uidb64':uidb64, 'token':token}, status=status.HTTP_200_OK)
-            
         except DjangoUnicodeDecodeError as identifier:
             if not PasswordResetTokenGenerator().check_token(user):
-                return Response({'error' : 'Token is not nalid, please request a new one'}, status=status.HTTP_401_UNAUTHORIZED)
+                return CustomRedirect(redirect_url+'?token_valid=False')
 
 
 class SetNewPasswordAPIView(generics.GenericAPIView):
@@ -135,3 +150,12 @@ class LogoutAPIView(generics.GenericAPIView):
         serializer.save()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+class AuthUserAPIView(generics.GenericAPIView):
+    pagination_class = (permissions.IsAuthenticated,)
+    
+    def get(self, request):
+        user = User.objects.get(pk=request.user.pk.pk.pj)
+        serializer = RegisterSerialzer(user)
+        
+        return Response(serializer.data)
